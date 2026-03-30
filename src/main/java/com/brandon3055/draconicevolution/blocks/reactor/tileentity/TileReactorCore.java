@@ -43,6 +43,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
@@ -946,6 +947,141 @@ public class TileReactorCore extends TileBCore implements MenuProvider {
     //endregion ############################################
 
     //region ################# Other Logic ##################
+
+    public static int getFuelValue(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return 0;
+        }
+        else if (stack.getItem() == DEContent.AWAKENED_DRACONIUM_BLOCK.get().asItem()) {
+            return stack.getCount() * 1296;
+        }
+        else if (stack.getItem() == DEContent.INGOT_DRACONIUM_AWAKENED.get()) {
+            return stack.getCount() * 144;
+        }
+        else if (stack.getItem() == DEContent.NUGGET_DRACONIUM_AWAKENED.get()) {
+            return stack.getCount() * 16;
+        }
+        return 0;
+    }
+
+    public static int getChaosValue(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return 0;
+        }
+        else if (stack.getItem() == DEContent.CHAOS_FRAG_LARGE.get()) {
+            return stack.getCount() * 1296;
+        }
+        else if (stack.getItem() == DEContent.CHAOS_FRAG_MEDIUM.get()) {
+            return stack.getCount() * 144;
+        }
+        else if (stack.getItem() == DEContent.CHAOS_FRAG_SMALL.get()) {
+            return stack.getCount() * 16;
+        }
+        return 0;
+    }
+
+    public boolean isItemValidForReactorSlot(int slot, ItemStack stack) {
+        if (stack.isEmpty()) {
+            return false;
+        }
+
+        ItemStack testStack = stack.copy();
+        testStack.setCount(1);
+        int value = slot < 3 ? getFuelValue(testStack) : getChaosValue(testStack);
+        return value > 0;
+    }
+
+    public ItemStack getReactorSlotItem(int slot) {
+        if (slot < 0 || slot > 5) {
+            return ItemStack.EMPTY;
+        }
+
+        if (slot < 3) {
+            int fuel = MathHelper.floor(reactableFuel.get());
+            int block = fuel / 1296;
+            int ingot = (fuel % 1296) / 144;
+            int nugget = ((fuel % 1296) % 144) / 16;
+
+            if (slot == 0 && block > 0) return new ItemStack(DEContent.AWAKENED_DRACONIUM_BLOCK.get(), block);
+            if (slot == 1 && ingot > 0) return new ItemStack(DEContent.INGOT_DRACONIUM_AWAKENED.get(), ingot);
+            if (slot == 2 && nugget > 0) return new ItemStack(DEContent.NUGGET_DRACONIUM_AWAKENED.get(), nugget);
+        }
+        else {
+            int chaos = MathHelper.floor(convertedFuel.get());
+            int block = chaos / 1296;
+            int ingot = (chaos % 1296) / 144;
+            int nugget = ((chaos % 1296) % 144) / 16;
+
+            if (slot == 3 && block > 0) return new ItemStack(DEContent.CHAOS_FRAG_LARGE.get(), block);
+            if (slot == 4 && ingot > 0) return new ItemStack(DEContent.CHAOS_FRAG_MEDIUM.get(), ingot);
+            if (slot == 5 && nugget > 0) return new ItemStack(DEContent.CHAOS_FRAG_SMALL.get(), nugget);
+        }
+
+        return ItemStack.EMPTY;
+    }
+
+    public ItemStack insertReactorSlotItem(int slot, ItemStack stack, boolean simulate) {
+        if (slot < 0 || slot > 5 || stack.isEmpty()) {
+            return stack;
+        }
+
+        ItemStack stackCopy = stack.copy();
+        stackCopy.setCount(1);
+        int value = slot < 3 ? getFuelValue(stackCopy) : getChaosValue(stackCopy);
+        if (value <= 0) {
+            return stack;
+        }
+
+        int maxFuel = 10368 + 15;
+        int installedFuel = (int) (reactableFuel.get() + convertedFuel.get());
+        int free = maxFuel - installedFuel;
+        int canInsert = Math.min(stack.getCount(), free / value);
+        if (canInsert <= 0) {
+            return stack;
+        }
+
+        if (!simulate) {
+            if (slot < 3) {
+                reactableFuel.add(canInsert * value);
+            }
+            else {
+                convertedFuel.add(canInsert * value);
+            }
+            setChanged();
+        }
+
+        ItemStack remainder = stack.copy();
+        remainder.shrink(canInsert);
+        return remainder;
+    }
+
+    public ItemStack extractReactorSlotItem(int slot, int amount, boolean simulate) {
+        if (slot < 0 || slot > 5 || amount <= 0) {
+            return ItemStack.EMPTY;
+        }
+
+        ItemStack inSlot = getReactorSlotItem(slot);
+        if (inSlot.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+
+        int extracted = Math.min(amount, inSlot.getCount());
+        ItemStack out = inSlot.copy();
+        out.setCount(extracted);
+
+        if (!simulate) {
+            int value = slot < 3 ? getFuelValue(out) : getChaosValue(out);
+            if (slot < 3) {
+                reactableFuel.subtract(value);
+            }
+            else {
+                convertedFuel.subtract(value);
+            }
+            setChanged();
+        }
+
+        return out;
+    }
 
     public long injectEnergy(long energy) {
         long received = 0;

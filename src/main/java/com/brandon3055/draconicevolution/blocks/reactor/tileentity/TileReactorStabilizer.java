@@ -5,9 +5,12 @@ import com.brandon3055.brandonscore.capability.CapabilityOP;
 import com.brandon3055.brandonscore.utils.EnergyUtils;
 import com.brandon3055.draconicevolution.init.DEContent;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.items.IItemHandler;
 
 /**
  * Created by brandon3055 on 18/01/2017.
@@ -19,6 +22,7 @@ public class TileReactorStabilizer extends TileReactorComponent {
         OPExtractor opExtractor = new OPExtractor(this);
         capManager.set(CapabilityOP.BLOCK, opExtractor);
         capManager.setCapSideValidator(opExtractor, face -> face == this.facing.get().getOpposite());
+        capManager.set(Capabilities.ItemHandler.BLOCK, new ReactorItemHandler());
     }
 
     public static void register(RegisterCapabilitiesEvent event) {
@@ -103,6 +107,52 @@ public class TileReactorStabilizer extends TileReactorComponent {
         @Override
         public boolean canReceive() {
             return false;
+        }
+    }
+
+    private class ReactorItemHandler implements IItemHandler {
+        @Override
+        public int getSlots() {
+            TileReactorCore core = getCachedCore();
+            return core != null && core.structureValid.get() ? 6 : 0;
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            TileReactorCore core = getCachedCore();
+            if (core == null || !core.structureValid.get()) {
+                return ItemStack.EMPTY;
+            }
+            return core.getReactorSlotItem(slot);
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            TileReactorCore core = getCachedCore();
+            if (core == null || !core.structureValid.get() || core.reactorState.get() != TileReactorCore.ReactorState.COLD) {
+                return stack;
+            }
+            return core.insertReactorSlotItem(slot, stack, simulate);
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            TileReactorCore core = getCachedCore();
+            if (core == null || !core.structureValid.get() || core.reactorState.get() != TileReactorCore.ReactorState.COLD) {
+                return ItemStack.EMPTY;
+            }
+            return core.extractReactorSlotItem(slot, amount, simulate);
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return 64;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            TileReactorCore core = getCachedCore();
+            return core != null && core.structureValid.get() && core.isItemValidForReactorSlot(slot, stack);
         }
     }
 }
