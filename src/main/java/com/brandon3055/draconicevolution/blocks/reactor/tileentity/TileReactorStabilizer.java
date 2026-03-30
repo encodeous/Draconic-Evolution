@@ -18,12 +18,14 @@ import org.jetbrains.annotations.NotNull;
  */
 public class TileReactorStabilizer extends TileReactorComponent {
 
+    public final IItemHandler fuelInventory = new FuelItemHandler();
+
     public TileReactorStabilizer(BlockPos pos, BlockState state) {
         super(DEContent.TILE_REACTOR_STABILIZER.get(), pos, state);
         OPExtractor opExtractor = new OPExtractor(this);
         capManager.set(CapabilityOP.BLOCK, opExtractor);
         capManager.setCapSideValidator(opExtractor, face -> face == this.facing.get().getOpposite());
-        capManager.set(Capabilities.ItemHandler.BLOCK, new FuelItemHandler());
+        capManager.set(Capabilities.ItemHandler.BLOCK, fuelInventory);
     }
 
     public static void register(RegisterCapabilitiesEvent event) {
