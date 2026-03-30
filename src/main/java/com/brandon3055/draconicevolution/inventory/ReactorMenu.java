@@ -2,7 +2,6 @@ package com.brandon3055.draconicevolution.inventory;
 
 import codechicken.lib.gui.modular.lib.container.SlotGroup;
 import codechicken.lib.inventory.container.modular.ModularSlot;
-import codechicken.lib.math.MathHelper;
 import com.brandon3055.draconicevolution.blocks.reactor.tileentity.TileReactorCore;
 import com.brandon3055.draconicevolution.init.DEContent;
 import net.minecraft.network.FriendlyByteBuf;
@@ -59,13 +58,13 @@ public class ReactorMenu extends DETileMenu<TileReactorCore> {
                 ItemStack copy = heldStack.copy();
                 copy.setCount(1);
 
-                if ((value = getFuelValue(copy)) > 0) {
+                if ((value = TileReactorCore.getFuelValue(copy)) > 0) {
                     int maxInsert = free / value;
                     int insert = Math.min(Math.min(heldStack.getCount(), maxInsert), dragType == 1 ? 1 : 64);
                     tile.reactableFuel.add(insert * value);
                     heldStack.shrink(insert);
                 }
-                else if ((value = getChaosValue(copy)) > 0) {
+                else if ((value = TileReactorCore.getChaosValue(copy)) > 0) {
                     int maxInsert = free / value;
                     int insert = Math.min(Math.min(heldStack.getCount(), maxInsert), dragType == 1 ? 1 : 64);
                     tile.convertedFuel.add(insert * value);
@@ -76,8 +75,8 @@ public class ReactorMenu extends DETileMenu<TileReactorCore> {
                 }
             }
             else if (!stackInSlot.isEmpty()) {
-                tile.reactableFuel.subtract(getFuelValue(stackInSlot));
-                tile.convertedFuel.subtract(getChaosValue(stackInSlot));
+                tile.reactableFuel.subtract(TileReactorCore.getFuelValue(stackInSlot));
+                tile.convertedFuel.subtract(TileReactorCore.getChaosValue(stackInSlot));
                 player.containerMenu.setCarried(stackInSlot);
             }
         }
@@ -86,37 +85,6 @@ public class ReactorMenu extends DETileMenu<TileReactorCore> {
         }
     }
 
-    private static int getFuelValue(ItemStack stack) {
-        if (stack.isEmpty()) {
-            return 0;
-        }
-        else if (stack.getItem() == DEContent.AWAKENED_DRACONIUM_BLOCK.get().asItem()) {
-            return stack.getCount() * 1296;
-        }
-        else if (stack.getItem() == DEContent.INGOT_DRACONIUM_AWAKENED.get()) {
-            return stack.getCount() * 144;
-        }
-        else if (stack.getItem() == DEContent.NUGGET_DRACONIUM_AWAKENED.get()) {
-            return stack.getCount() * 16;
-        }
-        return 0;
-    }
-
-    private static int getChaosValue(ItemStack stack) {
-        if (stack.isEmpty()) {
-            return 0;
-        }
-        else if (stack.getItem() == DEContent.CHAOS_FRAG_LARGE.get()) {
-            return stack.getCount() * 1296;
-        }
-        else if (stack.getItem() == DEContent.CHAOS_FRAG_MEDIUM.get()) {
-            return stack.getCount() * 144;
-        }
-        else if (stack.getItem() == DEContent.CHAOS_FRAG_SMALL.get()) {
-            return stack.getCount() * 16;
-        }
-        return 0;
-    }
     public static class SlotReactor extends ModularSlot {
         private static Container emptyInventory = new SimpleContainer(6);
         private final TileReactorCore tile;
@@ -147,41 +115,7 @@ public class ReactorMenu extends DETileMenu<TileReactorCore> {
         @NotNull
         @Override
         public ItemStack getItem() {
-            int index = getSlotIndex();
-            if (index < 3) {
-                int fuel = MathHelper.floor(tile.reactableFuel.get());
-                int block = fuel / 1296;
-                int ingot = (fuel % 1296) / 144;
-                int nugget = ((fuel % 1296) % 144) / 16;
-
-                if (index == 0 && block > 0) {
-                    return new ItemStack(DEContent.AWAKENED_DRACONIUM_BLOCK.get(), block);
-                }
-                else if (index == 1 && ingot > 0) {
-                    return new ItemStack(DEContent.INGOT_DRACONIUM_AWAKENED.get(), ingot);
-                }
-                else if (index == 2 && nugget > 0) {
-                    return new ItemStack(DEContent.NUGGET_DRACONIUM_AWAKENED.get(), nugget);
-                }
-            }
-            else {
-                int chaos = MathHelper.floor(tile.convertedFuel.get());
-                int block = chaos / 1296;
-                int ingot = (chaos % 1296) / 144;
-                int nugget = ((chaos % 1296) % 144) / 16;
-
-                if (index == 3 && block > 0) {
-                    return new ItemStack(DEContent.CHAOS_FRAG_LARGE.get(), block);
-                }
-                else if (index == 4 && ingot > 0) {
-                    return new ItemStack(DEContent.CHAOS_FRAG_MEDIUM.get(), ingot);
-                }
-                else if (index == 5 && nugget > 0) {
-                    return new ItemStack(DEContent.CHAOS_FRAG_SMALL.get(), nugget);
-                }
-            }
-
-            return ItemStack.EMPTY;
+            return tile.getReactorSlotItem(getSlotIndex());
         }
 
         @Override
@@ -189,13 +123,13 @@ public class ReactorMenu extends DETileMenu<TileReactorCore> {
             if (!(tile.getLevel() instanceof ServerLevel)) return;
             int index = getSlotIndex();
             if (index < 3) {
-                double prevValue = getFuelValue(getItem());
-                double newValue = getFuelValue(stack);
+                double prevValue = TileReactorCore.getFuelValue(getItem());
+                double newValue = TileReactorCore.getFuelValue(stack);
                 double change = newValue - prevValue;
                 tile.reactableFuel.add(change);
             } else {
-                double prevValue = getChaosValue(getItem());
-                double newValue = getChaosValue(stack);
+                double prevValue = TileReactorCore.getChaosValue(getItem());
+                double newValue = TileReactorCore.getChaosValue(stack);
                 double change = newValue - prevValue;
                 tile.convertedFuel.add(change);
             }
